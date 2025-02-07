@@ -1,0 +1,335 @@
+import tkinter as tk
+from tkinter import messagebox
+import datetime
+import hashlib
+
+
+class Customer:
+    def __init__(self, name, gender, account_number, postal_code, account_type, balance=0, password=None):
+        self.name = name
+        self.gender = gender
+        self.account_number = account_number
+        self.postal_code = postal_code
+        self.account_type = account_type
+        self.balance = balance
+        self.transactions = []
+        self.password = password  # Store password as hashed
+        self.loan_balance = 0  # Loan balance starts at 0
+        self.loan_type = None
+        self.loan_duration = 0
+
+
+class Bank:
+    def __init__(self, root):
+        self.root = root
+        self.customers = {}
+        self.logged_in_account_number = None
+        self.create_widgets()
+
+    def create_widgets(self):
+        self.frame1 = tk.Frame(self.root, padx=15, pady=15)
+        self.frame2 = tk.Frame(self.root, padx=15, pady=15)
+        self.frame3 = tk.Frame(self.root, padx=15, pady=15)
+
+        self.root.title("Banking Management System")
+        self.root.geometry("600x600")
+        self.frame1.config(bg="#f0f0f0")
+        self.frame2.config(bg="#f0f0f0")
+        self.frame3.config(bg="#f0f0f0")
+
+        # Create labels and entries for creating account
+        self.label1 = self.create_label(self.frame1, "Name:")
+        self.entry1 = self.create_entry(self.frame1)
+
+        self.label2 = self.create_label(self.frame1, "Gender:")
+        self.entry2 = self.create_entry(self.frame1)
+
+        self.label3 = self.create_label(self.frame1, "Postal Code:")
+        self.entry3 = self.create_entry(self.frame1)
+
+        self.label4 = self.create_label(self.frame1, "Account Number:")
+        self.entry4 = self.create_entry(self.frame1)
+
+        self.label5 = self.create_label(self.frame1, "Account Type (Saving/Current):")
+        self.entry5 = self.create_entry(self.frame1)
+
+        self.label6 = self.create_label(self.frame1, "Initial Balance:")
+        self.entry6 = self.create_entry(self.frame1)
+
+        self.label7 = self.create_label(self.frame1, "Password:")
+        self.entry7 = self.create_entry(self.frame1)
+
+        self.button1 = self.create_button(self.frame1, "Create Account", self.create_account)
+        self.button2 = self.create_button(self.frame2, "Login", self.login)
+
+        self.separator = tk.Label(self.root, text="--------------------------------------------------", anchor="w",
+                                  bg="#f0f0f0")
+
+        # Add frames using grid layout
+        self.frame1.grid(row=0, column=0, sticky="nsew")
+        self.frame2.grid(row=1, column=0, sticky="nsew")
+        self.separator.grid(row=2, column=0, sticky="nsew")
+
+        # Frame 1 content using grid
+        self.label1.grid(row=0, column=0, pady=5, sticky="w")
+        self.entry1.grid(row=0, column=1, pady=5)
+
+        self.label2.grid(row=1, column=0, pady=5, sticky="w")
+        self.entry2.grid(row=1, column=1, pady=5)
+
+        self.label3.grid(row=2, column=0, pady=5, sticky="w")
+        self.entry3.grid(row=2, column=1, pady=5)
+
+        self.label4.grid(row=3, column=0, pady=5, sticky="w")
+        self.entry4.grid(row=3, column=1, pady=5)
+
+        self.label5.grid(row=4, column=0, pady=5, sticky="w")
+        self.entry5.grid(row=4, column=1, pady=5)
+
+        self.label6.grid(row=5, column=0, pady=5, sticky="w")
+        self.entry6.grid(row=5, column=1, pady=5)
+
+        self.label7.grid(row=6, column=0, pady=5, sticky="w")
+        self.entry7.grid(row=6, column=1, pady=5)
+
+        self.button1.grid(row=7, column=0, columnspan=2, pady=10)
+        self.button2.grid(row=8, column=0, columnspan=2, pady=10)
+
+    def create_label(self, frame, text):
+        return tk.Label(frame, text=text, width=25, anchor="w", bg="#f0f0f0", font=("Arial", 10))
+
+    def create_entry(self, frame):
+        return tk.Entry(frame, width=25, font=("Arial", 10))
+
+    def create_button(self, frame, text, command):
+        return tk.Button(frame, text=text, width=20, height=2, command=command, font=("Arial", 10), bg="#4CAF50",
+                         fg="white", relief="solid", bd=2)
+
+    def create_account(self):
+        name = self.entry1.get()
+        gender = self.entry2.get()
+        postal_code = self.entry3.get()
+        account_number = self.entry4.get()
+        account_type = self.entry5.get()
+        password = self.entry7.get()
+
+        try:
+            initial_balance = float(self.entry6.get())
+        except ValueError:
+            messagebox.showerror("Error", "Initial balance must be a number.")
+            return
+
+        # Validate postal code and account number length
+        if len(postal_code) != 5 or not postal_code.isdigit():
+            messagebox.showerror("Error", "Postal code must be exactly 5 digits.")
+            return
+
+        if len(account_number) != 10 or not account_number.isdigit():
+            messagebox.showerror("Error", "Account number must be exactly 10 digits.")
+            return
+
+        if account_number in self.customers:
+            messagebox.showerror("Error", "Account already exists!")
+            return
+
+        # Hash the password
+        hashed_password = hashlib.sha256(password.encode()).hexdigest()
+
+        # Create customer and add to dictionary
+        customer = Customer(name, gender, account_number, postal_code, account_type, initial_balance, hashed_password)
+        self.customers[account_number] = customer
+
+        messagebox.showinfo("Success", f"Account created successfully for {name}.")
+        self.frame1.grid_forget()
+        self.separator.grid_forget()
+        self.frame2.grid(row=1, column=0, sticky="nsew")
+
+    def login(self):
+        account_number = self.entry4.get()
+        password = self.entry7.get()
+
+        if account_number in self.customers:
+            customer = self.customers[account_number]
+            if hashlib.sha256(password.encode()).hexdigest() == customer.password:
+                self.logged_in_account_number = account_number
+                messagebox.showinfo("Login Successful", f"Logged in as {customer.name}.")
+                self.frame2.grid_forget()
+                self.show_transaction_section()
+            else:
+                messagebox.showerror("Error", "Incorrect password.")
+        else:
+            messagebox.showerror("Error", "Account number does not exist.")
+
+    def show_transaction_section(self):
+        self.frame3.grid(row=2, column=0, sticky="nsew")
+
+        # Create entry fields for transactions
+        self.deposit_amount_label = self.create_label(self.frame3, "Deposit Amount:")
+        self.deposit_entry = self.create_entry(self.frame3)
+        self.withdraw_amount_label = self.create_label(self.frame3, "Withdraw Amount:")
+        self.withdraw_entry = self.create_entry(self.frame3)
+        self.transfer_account_label = self.create_label(self.frame3, "Transfer To Account:")
+        self.transfer_account_entry = self.create_entry(self.frame3)
+        self.transfer_amount_label = self.create_label(self.frame3, "Transfer Amount:")
+        self.transfer_amount_entry = self.create_entry(self.frame3)
+
+        # Loan Type Dropdown
+        self.loan_type_label = self.create_label(self.frame3, "Loan Type:")
+        loan_types = ["Home Loan", "Property Loan", "Insurance"]
+        self.loan_type_var = tk.StringVar(self.frame3)
+        self.loan_type_var.set(loan_types[0])  # Set default value to "Home Loan"
+        self.loan_type_menu = tk.OptionMenu(self.frame3, self.loan_type_var, *loan_types)
+
+        self.loan_amount_label = self.create_label(self.frame3, "Loan Amount:")
+        self.loan_amount_entry = self.create_entry(self.frame3)
+        self.loan_duration_label = self.create_label(self.frame3, "Loan Duration (Months):")
+        self.loan_duration_entry = self.create_entry(self.frame3)
+
+        # Transaction buttons
+        self.deposit_button = self.create_button(self.frame3, "Deposit", self.deposit)
+        self.withdraw_button = self.create_button(self.frame3, "Withdraw", self.withdraw)
+        self.transfer_button = self.create_button(self.frame3, "Transfer Funds", self.transfer_funds)
+        self.loan_button = self.create_button(self.frame3, "Apply for Loan", self.apply_loan)
+        self.history_button = self.create_button(self.frame3, "Transaction History", self.show_transaction_history)
+        self.account_statement_button = self.create_button(self.frame3, "Generate Account Statement", self.generate_account_statement)
+        self.exit_button = self.create_button(self.frame3, "Exit", self.root.quit)
+
+        # Grid layout for transaction section
+        self.deposit_amount_label.grid(row=0, column=0, pady=5, sticky="w")
+        self.deposit_entry.grid(row=0, column=1, pady=5)
+        self.withdraw_amount_label.grid(row=1, column=0, pady=5, sticky="w")
+        self.withdraw_entry.grid(row=1, column=1, pady=5)
+        self.transfer_account_label.grid(row=2, column=0, pady=5, sticky="w")
+        self.transfer_account_entry.grid(row=2, column=1, pady=5)
+        self.transfer_amount_label.grid(row=3, column=0, pady=5, sticky="w")
+        self.transfer_amount_entry.grid(row=3, column=1, pady=5)
+        self.loan_type_label.grid(row=4, column=0, pady=5, sticky="w")
+        self.loan_type_menu.grid(row=4, column=1, pady=5)
+        self.loan_amount_label.grid(row=5, column=0, pady=5, sticky="w")
+        self.loan_amount_entry.grid(row=5, column=1, pady=5)
+        self.loan_duration_label.grid(row=6, column=0, pady=5, sticky="w")
+        self.loan_duration_entry.grid(row=6, column=1, pady=5)
+
+        self.deposit_button.grid(row=7, column=0, columnspan=2, pady=5)
+        self.withdraw_button.grid(row=8, column=0, columnspan=2, pady=5)
+        self.transfer_button.grid(row=9, column=0, columnspan=2, pady=5)
+        self.loan_button.grid(row=10, column=0, columnspan=2, pady=5)
+        self.history_button.grid(row=11, column=0, columnspan=2, pady=5)
+        self.account_statement_button.grid(row=12, column=0, columnspan=2, pady=5)
+        self.exit_button.grid(row=13, column=0, columnspan=2, pady=5)
+
+    def generate_account_statement(self):
+        # Retrieve the customer's information and transaction history
+        customer = self.customers[self.logged_in_account_number]
+        statement = f"Account Statement for {customer.name} ({customer.account_number})\n"
+        statement += f"Account Type: {customer.account_type}\n"
+        statement += f"Balance: {customer.balance}\n"
+        statement += "Transactions:\n"
+
+        # Append all transactions to the statement
+        if customer.transactions:
+            for transaction in customer.transactions:
+                statement += f" - {transaction}\n"
+        else:
+            statement += "No transactions found.\n"
+
+        # Show the statement in a message box
+        messagebox.showinfo("Account Statement", statement)
+
+    def apply_loan(self):
+        try:
+            loan_type = self.loan_type_var.get()  # Get the selected loan type from the dropdown
+            loan_amount = float(self.loan_amount_entry.get())
+            loan_duration = int(self.loan_duration_entry.get())
+
+            if loan_amount <= 0 or loan_duration <= 0:
+                messagebox.showerror("Error", "Loan amount and duration must be greater than 0.")
+                return
+
+            customer = self.customers[self.logged_in_account_number]
+            customer.loan_balance = loan_amount
+            customer.loan_type = loan_type  # Store the loan type selected
+            customer.loan_duration = loan_duration
+            transaction_time = datetime.datetime.now()
+            customer.transactions.append(
+                f"Loan of {loan_amount} applied for {loan_duration} months ({loan_type}) on {transaction_time.strftime('%Y-%m-%d %H:%M:%S')}")
+
+            messagebox.showinfo("Success", f"Loan of {loan_amount} applied for {loan_duration} months ({loan_type}).")
+        except ValueError:
+            messagebox.showerror("Error", "Please enter valid loan amount and duration.")
+
+    def deposit(self):
+        try:
+            deposit_amount = float(self.deposit_entry.get())
+            if deposit_amount <= 0:
+                messagebox.showerror("Error", "Deposit amount must be greater than 0.")
+                return
+
+            customer = self.customers[self.logged_in_account_number]
+            customer.balance += deposit_amount
+            transaction_time = datetime.datetime.now()
+            customer.transactions.append(f"Deposited {deposit_amount} on {transaction_time.strftime('%Y-%m-%d %H:%M:%S')}")
+            messagebox.showinfo("Success", f"Deposited {deposit_amount}. New balance: {customer.balance}")
+        except ValueError:
+            messagebox.showerror("Error", "Invalid deposit amount.")
+
+    def withdraw(self):
+        try:
+            withdraw_amount = float(self.withdraw_entry.get())
+            if withdraw_amount <= 0:
+                messagebox.showerror("Error", "Withdraw amount must be greater than 0.")
+                return
+
+            customer = self.customers[self.logged_in_account_number]
+            if withdraw_amount > customer.balance:
+                messagebox.showerror("Error", "Insufficient balance.")
+                return
+
+            customer.balance -= withdraw_amount
+            transaction_time = datetime.datetime.now()
+            customer.transactions.append(f"Withdrew {withdraw_amount} on {transaction_time.strftime('%Y-%m-%d %H:%M:%S')}")
+            messagebox.showinfo("Success", f"Withdrew {withdraw_amount}. New balance: {customer.balance}")
+        except ValueError:
+            messagebox.showerror("Error", "Invalid withdraw amount.")
+
+    def transfer_funds(self):
+        try:
+            target_account = self.transfer_account_entry.get()
+            transfer_amount = float(self.transfer_amount_entry.get())
+            if transfer_amount <= 0:
+                messagebox.showerror("Error", "Transfer amount must be greater than 0.")
+                return
+
+            if target_account not in self.customers:
+                messagebox.showerror("Error", "Target account number does not exist.")
+                return
+
+            customer = self.customers[self.logged_in_account_number]
+            if transfer_amount > customer.balance:
+                messagebox.showerror("Error", "Insufficient balance.")
+                return
+
+            target_customer = self.customers[target_account]
+            customer.balance -= transfer_amount
+            target_customer.balance += transfer_amount
+            transaction_time = datetime.datetime.now()
+
+            customer.transactions.append(f"Transferred {transfer_amount} to account {target_account} on {transaction_time.strftime('%Y-%m-%d %H:%M:%S')}")
+            target_customer.transactions.append(f"Received {transfer_amount} from account {customer.account_number} on {transaction_time.strftime('%Y-%m-%d %H:%M:%S')}")
+            messagebox.showinfo("Success", f"Transferred {transfer_amount} to account {target_account}.")
+        except ValueError:
+            messagebox.showerror("Error", "Invalid transfer amount.")
+
+    def show_transaction_history(self):
+        customer = self.customers[self.logged_in_account_number]
+        if customer.transactions:
+            history = "\n".join(customer.transactions)
+            messagebox.showinfo("Transaction History", history)
+        else:
+            messagebox.showinfo("Transaction History", "No transactions found.")
+
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = Bank(root)
+    root.mainloop()
